@@ -3,12 +3,12 @@ import os
 from pathlib import Path
 
 def process_files(input_files, output_file):
-     """
+    """
     合并多个文件去重后处理
     :param input_files: 输入文件路径列表
     :param output_file: 输出文件路径
     """
-    temp_path = f"{output_file}.tmp"
+    temp_path = f"{output_file}.tmp"  # 临时文件路径
     seen_lines = set()  # 用于记录已处理的行
 
     with open(temp_path, 'w', encoding='utf-8') as fout:
