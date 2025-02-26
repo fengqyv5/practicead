@@ -22,7 +22,7 @@ jobs:
           # 下载多个 txt 文件到 input_files 文件夹
           # 替换以下 URL 为你需要下载的文件地址
           curl -L -o input_files/anti-ad-domains.txt https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-domains.txt
-          # curl -L -o input_files/hageziproyogadns.txt https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.txt
+          curl -L -o input_files/hageziproyogadns.txt https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro-onlydomains.txt
           curl -L -o input_files/adblockdomain.txt https://raw.githubusercontent.com/217heidai/adblockfilters/main/rules/adblockdomain.txt
 
       # 合并 input_files 文件夹中的 txt 文件
