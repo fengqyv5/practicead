@@ -1,0 +1,136 @@
+name: Merge and Process TXT Files
+
+on:
+  schedule:
+    - cron: '0 0 */3 * *'  # 每三天凌晨 0 点执行一次
+
+jobs:
+  process-files:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 下载 input_files 文件夹中的 txt 文件
+      - name: Fetch Input Files
+        run: |
+          # 创建 input_files 文件夹
+          mkdir -p input_files
+
+          # 下载多个 txt 文件到 input_files 文件夹
+          # 替换以下 URL 为你需要下载的文件地址
+          curl -L -o input_files/anti-ad-domains.txt https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-domains.txt
+          curl -L -o input_files/hageziproyogadns.txt https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.txt
+          curl -L -o input_files/adblockdomain.txt https://raw.githubusercontent.com/217heidai/adblockfilters/main/rules/adblockdomain.txt
+
+      # 合并 input_files 文件夹中的 txt 文件
+      - name: Merge Input Files
+        run: |
+          # 使用 Python 脚本处理 input_files 文件夹的文件
+          python << EOF
+          import os
+
+          # 配置文件夹路径和输出文件
+          input_folder = "input_files"
+          output_folder = "output"
+          output_file = os.path.join(output_folder, "gwk_blocklists.txt")
+
+          # 函数：合并并处理文件
+          def merge_files(input_folder, output_file):
+              all_lines = []
+              # 遍历文件夹中的所有 txt 文件
+              for filename in os.listdir(input_folder):
+                  if filename.endswith(".txt"):
+                      with open(os.path.join(input_folder, filename), 'r') as f:
+                          for line in f:
+                              line = line.strip()
+                              # 跳过空白行、# 或 ! 开头的行
+                              if line and not line.startswith(('#', '!')):
+                                  all_lines.append(line)
+
+              # 去重
+              unique_lines = list(set(all_lines))
+              # 添加 * 和 . 到每行开头
+              processed_lines = [f"*.{line}" for line in unique_lines]
+
+              # 创建输出文件夹
+              os.makedirs(output_folder, exist_ok=True)
+
+              # 写入到新的 txt 文件
+              with open(output_file, 'w') as f:
+                  for line in processed_lines:
+                      f.write(line + '\n')
+
+          # 执行合并处理
+          merge_files(input_folder, output_file)
+          EOF
+
+      # 下载 chinalist 文件夹中的 txt 文件
+      - name: Fetch China List Files
+        run: |
+          # 创建 chinalist 文件夹
+          mkdir -p chinalist
+
+          # 下载多个 txt 文件到 chinalist 文件夹
+          # 替换以下 URL 为你需要下载的文件地址
+          curl -L -o chinalist/dnscrypt-forwarding-rules.txt https://raw.githubusercontent.com/CNMan/dnscrypt-proxy-config/refs/heads/master/dnscrypt-forwarding-rules.txt
+          # curl -L -o chinalist/cl_file2.txt https://example.com/cl_file2.txt
+
+      # 合并 chinalist 文件夹中的 txt 文件
+      - name: Merge China List Files
+        run: |
+          # 使用 Python 脚本处理 chinalist 文件夹的文件
+          python << EOF
+          import os
+
+          # 配置文件夹路径和输出文件
+          input_folder = "chinalist"
+          output_folder = "output"
+          output_file = os.path.join(output_folder, "gwk_chinalists.txt")
+
+          # 函数：合并并处理文件
+          def merge_files(input_folder, output_file):
+              all_lines = []
+              # 遍历文件夹中的所有 txt 文件
+              for filename in os.listdir(input_folder):
+                  if filename.endswith(".txt"):
+                      with open(os.path.join(input_folder, filename), 'r') as f:
+                          for line in f:
+                              # 保留先导空格并删除空格后的内容
+                              line = line.split(' ', 1)[0].strip()
+                              # 跳过空白行、# 或 ! 开头的行
+                              if line and not line.startswith(('#', '!')):
+                                  all_lines.append(line)
+
+              # 去重
+              unique_lines = list(set(all_lines))
+              # 添加 * 和 . 到每行开头
+              processed_lines = [f"*.{line}" for line in unique_lines]
+
+              # 创建输出文件夹
+              os.makedirs(output_folder, exist_ok=True)
+
+              # 写入到新的 txt 文件
+              with open(output_file, 'w') as f:
+                  for line in processed_lines:
+                      f.write(line + '\n')
+
+          # 执行合并处理
+          merge_files(input_folder, output_file)
+          EOF
+
+      # 提交并推送到仓库
+      - name: Commit and Push
+        run: |
+          git config user.name "fengqyv5"
+          git config user.email "fengqyv5@github.com"
+
+          # 添加更改
+          git add .
+
+          # 提交更改
+          git commit -m "Automated processing and merging of txt files" || echo "No changes to commit"
+
+          # 推送到仓库（需要权限）
+          git push origin HEAD
