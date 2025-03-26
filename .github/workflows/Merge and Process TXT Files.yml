@@ -24,7 +24,9 @@ jobs:
           curl -L -o input_files/anti-ad-domains.txt https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-domains.txt
           curl -L -o input_files/hagezipro.txt https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro-onlydomains.txt
           curl -L -o input_files/adblockdomain.txt https://raw.githubusercontent.com/217heidai/adblockfilters/main/rules/adblockdomain.txt
-
+          curl -L -o input_files/cnman-dnscrypt-blacklist-domains.txt https://raw.githubusercontent.com/CNMan/dnscrypt-proxy-config/refs/heads/master/dnscrypt-blacklist-domains.txt
+          curl -L -o input_files/Energized-Protection.txt https://energized.pro/blu/domains.txt
+          
       # 合并 input_files 文件夹中的 txt 文件
       - name: Merge Input Files
         run: |
@@ -53,7 +55,7 @@ jobs:
               # 去重
               unique_lines = list(set(all_lines))
               # 添加 * 和 . 到每行开头
-              processed_lines = [f"*.{line}" for line in unique_lines]
+              # processed_lines = [f"*.{line}" for line in unique_lines]
 
               # 创建输出文件夹
               os.makedirs(output_folder, exist_ok=True)
