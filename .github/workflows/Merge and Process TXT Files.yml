@@ -56,6 +56,7 @@ jobs:
               unique_lines = list(set(all_lines))
               # 添加 * 和 . 到每行开头
               # processed_lines = [f"*.{line}" for line in unique_lines]
+              processed_lines = unique_lines
 
               # 创建输出文件夹
               os.makedirs(output_folder, exist_ok=True)
