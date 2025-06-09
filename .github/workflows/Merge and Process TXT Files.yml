@@ -25,7 +25,7 @@ jobs:
           curl -L -o input_files/hagezipro.txt https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro-onlydomains.txt
           curl -L -o input_files/adblockdomain.txt https://raw.githubusercontent.com/217heidai/adblockfilters/main/rules/adblockdomain.txt
           # curl -L -o input_files/Energized-Protection.txt https://energized.pro/blu/domains.txt
-          curl -L -o input_files/oisd-big-domainswild.txt https://big.oisd.nl/domainswild
+          curl -L -o input_files/oisd-big-domainswild2.txt https://big.oisd.nl/domainswild2
           
       # 合并 input_files 文件夹中的 txt 文件
       - name: Merge Input Files
