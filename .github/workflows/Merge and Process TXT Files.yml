@@ -2,7 +2,7 @@ name: Merge and Process TXT Files
 
 on:
   schedule:
-    - cron: '0 0 */2 * *'  # 每三天凌晨 0 点执行一次
+    - cron: '0 0 */1 * *'  # 每天凌晨 0 点执行一次
   workflow_dispatch:
   
 jobs:
@@ -37,10 +37,11 @@ jobs:
           # 配置文件夹路径和输出文件
           input_folder = "input_files"
           output_folder = "output"
-          output_file = os.path.join(output_folder, "gwk_blocklists.txt")
+          output_file_dnscrypt = os.path.join(output_folder, "gwk_blocklists_dnscrypt.txt")
+          output_file_yogadns = os.path.join(output_folder, "gwk_blocklists_yogadns.txt")
 
           # 函数：合并并处理文件
-          def merge_files(input_folder, output_file):
+          def merge_files_dnscrypt(input_folder, output_file):
               all_lines = []
               # 遍历文件夹中的所有 txt 文件
               for filename in os.listdir(input_folder):
@@ -66,8 +67,35 @@ jobs:
                   for line in processed_lines:
                       f.write(line + '\n')
 
+          # 函数：合并并处理文件
+          def merge_files_yogadns(input_folder, output_file):
+              all_lines = []
+              # 遍历文件夹中的所有 txt 文件
+              for filename in os.listdir(input_folder):
+                  if filename.endswith(".txt"):
+                      with open(os.path.join(input_folder, filename), 'r') as f:
+                          for line in f:
+                              line = line.strip()
+                              # 跳过空白行、# 或 ! 开头的行
+                              if line and not line.startswith(('#', '!')):
+                                  all_lines.append(line)
+
+              # 去重
+              unique_lines = list(set(all_lines))
+              # 添加 * 和 . 到每行开头
+              processed_lines = [f"*.{line}" for line in unique_lines]
+
+              # 创建输出文件夹
+              os.makedirs(output_folder, exist_ok=True)
+
+              # 写入到新的 txt 文件
+              with open(output_file, 'w') as f:
+                  for line in processed_lines:
+                      f.write(line + '\n')
+
           # 执行合并处理
-          merge_files(input_folder, output_file)
+          merge_files_dnscrypt(input_folder, output_file_dnscrypt)
+          merge_files_yogadns(input_folder, output_file_yogadns)
           EOF
 
       # 下载 chinalist 文件夹中的 txt 文件
