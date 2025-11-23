@@ -1,0 +1,83 @@
+name: Auto Update Hosts
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 每天 UTC 2:00（北京时间 10:00）执行一次
+  workflow_dispatch:    # 也支持手动触发
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download hosts files
+        run: |
+          curl -L -o Accelerate-Hosts.txt https://github.com/Potterli20/file/releases/download/github-hosts/Accelerate-Hosts.txt
+          curl -L -o bilibili-hosts.txt https://github.com/Potterli20/file/releases/download/github-hosts/bilibili-hosts.txt
+
+      - name: Merge and convert hosts
+        run: |
+          cat Accelerate-Hosts.txt bilibili-hosts.txt | awk '!seen[$0]++' > all-hosts.txt
+          python3 <<'PY'
+import re
+
+def convert_hosts_file(hosts_content):
+    # IPv6 正则，覆盖标准、压缩、映射IPv4等格式
+    ipv6_pattern = re.compile(
+        r'^(?:'
+        r'([\da-fA-F]{1,4}:){7}[\da-fA-F]{1,4}|'
+        r'([\da-fA-F]{1,4}:){1,7}:|'
+        r'([\da-fA-F]{1,4}:){1,6}:[\da-fA-F]{1,4}|'
+        r'([\da-fA-F]{1,4}:){1,5}(:[\da-fA-F]{1,4}){1,2}|'
+        r'([\da-fA-F]{1,4}:){1,4}(:[\da-fA-F]{1,4}){1,3}|'
+        r'([\da-fA-F]{1,4}:){1,3}(:[\da-fA-F]{1,4}){1,4}|'
+        r'([\da-fA-F]{1,4}:){1,2}(:[\da-fA-F]{1,4}){1,5}|'
+        r'[\da-fA-F]{1,4}:((:[\da-fA-F]{1,4}){1,6})|'
+        r':((:[\da-fA-F]{1,4}){1,7}|:)|'
+        r'fe80:(:[\da-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|'
+        r'::(ffff(:0{1,4}){0,1}:){0,1}'
+        r'((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}'
+        r'(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|'
+        r'([0-9a-fA-F]{1,4}:){1,4}:'
+        r'((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}'
+        r'(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])'
+        r')$'
+    )
+
+    def transform_line(line):
+        line = line.strip()
+        if not line or line.startswith('#'):
+            return None  # 返回 None 表示过滤掉该行
+
+        parts = line.split()
+        if len(parts) < 2:
+            return line
+
+        ip, domain = parts[0], parts[1]
+        if re.fullmatch(r'((?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)', ip) or ipv6_pattern.fullmatch(ip):
+            return f"{domain}    {ip}"
+        else:
+            return line
+
+    # 过滤掉 None 行
+    transformed_lines = [transform_line(l) for l in hosts_content.splitlines()]
+    return "\n".join([l for l in transformed_lines if l is not None])
+
+with open('all-hosts.txt', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+converted = convert_hosts_file(content)
+
+with open('merged-hosts.txt', 'w', encoding='utf-8') as f:
+    f.write(converted)
+PY
+
+      - name: Commit and push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add merged-hosts.txt
+          git diff --staged --quiet || git commit -m "auto update hosts"
+          git push
