@@ -21,9 +21,9 @@ jobs:
         run: |
           cat Accelerate-Hosts.txt bilibili-hosts.txt | awk '!seen[$0]++' > all-hosts.txt
           python3 <<'PY'
-  import re
+          import re
 
-  def convert_hosts_file(hosts_content):
+def convert_hosts_file(hosts_content):
       # IPv6 正则，覆盖标准、压缩、映射IPv4等格式
       ipv6_pattern = re.compile(
           r'^(?:'
