@@ -1,82 +1,104 @@
-name: Auto Update Hosts
+# .github/workflows/merge-hosts.yml
 
+name: Merge and Process Hosts
+
+# 触发器
 on:
+  # 每天北京时间上午 9:00 运行一次 (UTC 时间 01:00)
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '0 1 * * *'
+  # 允许在 Actions 页面手动触发
   workflow_dispatch:
 
 jobs:
-  update:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest # 使用最新的 Ubuntu 环境
+
     steps:
+      # 步骤 1: 检出代码
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 步骤 2: 下载所需的 hosts 文件
       - name: Download hosts files
         run: |
-          curl -L -o Accelerate-Hosts.txt https://github.com/Potterli20/file/releases/download/github-hosts/Accelerate-Hosts.txt
-          curl -L -o bilibili-hosts.txt https://github.com/Potterli20/file/releases/download/github-hosts/bilibili-hosts.txt
+          echo "开始下载 hosts 文件..."
+          wget -O accelerate-hosts.txt https://github.com/Potterli20/file/releases/download/github-hosts/Accelerate-Hosts.txt
+          wget -O bilibili-hosts.txt https://github.com/Potterli20/file/releases/download/github-hosts/bilibili-hosts.txt
+          echo "下载完成。"
 
-      - name: Merge and convert hosts
+      # 步骤 3: 合并文件
+      - name: Merge files
         run: |
-          cat Accelerate-Hosts.txt bilibili-hosts.txt | awk '!seen[$0]++' > all-hosts.txt
-          python3 <<'PY'
+          echo "开始合并文件..."
+          cat accelerate-hosts.txt bilibili-hosts.txt > combined-hosts.txt
+          echo "合并完成，生成 combined-hosts.txt"
+
+      # 步骤 4: 使用 Python 脚本处理文件
+      - name: Process merged file with Python
+        run: |
+          # 创建一个 Python 脚本
+          cat > process_hosts.py << 'EOF'
           import re
+          import sys
 
-def convert_hosts_file(hosts_content):
-      # IPv6 正则，覆盖标准、压缩、映射IPv4等格式
-      ipv6_pattern = re.compile(
-          r'^(?:'
-          r'([\da-fA-F]{1,4}:){7}[\da-fA-F]{1,4}|'
-          r'([\da-fA-F]{1,4}:){1,7}:|'
-          r'([\da-fA-F]{1,4}:){1,6}:[\da-fA-F]{1,4}|'
-          r'([\da-fA-F]{1,4}:){1,5}(:[\da-fA-F]{1,4}){1,2}|'
-          r'([\da-fA-F]{1,4}:){1,4}(:[\da-fA-F]{1,4}){1,3}|'
-          r'([\da-fA-F]{1,4}:){1,3}(:[\da-fA-F]{1,4}){1,4}|'
-          r'([\da-fA-F]{1,4}:){1,2}(:[\da-fA-F]{1,4}){1,5}|'
-          r'[\da-fA-F]{1,4}:((:[\da-fA-F]{1,4}){1,6})|'
-          r':((:[\da-fA-F]{1,4}){1,7}|:)|'
-          r'fe80:(:[\da-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|'
-          r'::(ffff(:0{1,4}){0,1}:){0,1}'
-          r'((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}'
-          r'(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|'
-          r'([0-9a-fA-F]{1,4}:){1,4}:'
-          r'((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}'
-          r'(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])'
-          r')$'
-      )
+          # 定义用于匹配 IPv4 和 IPv6 地址的正则表达式
+          # IPv4: 4组1-3位数字，用.分隔
+          # IPv6: 多组4位十六进制数，用:分隔，支持::压缩
+          IPV4_REGEX = r'(\d{1,3}\.){3}\d{1,3}'
+          IPV6_REGEX = r'([0-9a-fA-F]{1,4}:){2,7}[0-9a-fA-F]{1,4}'
+          # 合并 IP 匹配模式，并确保行首是 IP
+          IP_REGEX = re.compile(rf'^\s*(?P<ip>({IPV4_REGEX})|({IPV6_REGEX}))\s+(?P<domain>.+)$')
 
-      def transform_line(line):
-          line = line.strip()
-          if not line or line.startswith('#'):
-              return None
+          input_file = 'combined-hosts.txt'
+          output_file = 'final-hosts.txt'
 
-          parts = line.split()
-          if len(parts) < 2:
-              return line
+          processed_lines = []
+          with open(input_file, 'r', encoding='utf-8') as f:
+              for line in f:
+                  # 去掉行首尾的空白字符
+                  stripped_line = line.strip()
+                  
+                  # 跳过空行和注释行
+                  if not stripped_line or stripped_line.startswith('#'):
+                      continue
+                  
+                  # 使用正则表达式匹配并交换 IP 和域名
+                  match = IP_REGEX.match(stripped_line)
+                  if match:
+                      ip = match.group('ip')
+                      domain = match.group('domain').strip()
+                      # 将域名放在前面，IP放在后面
+                      processed_lines.append(f"{domain} {ip}")
+                  else:
+                      # 如果不匹配 IP 在前的格式，可能是域名在前的格式或其他格式，直接保留或按需处理
+                      # 这里我们选择直接保留，以防万一
+                      processed_lines.append(stripped_line)
 
-          ip, domain = parts[0], parts[1]
-          if re.fullmatch(r'((?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)', ip) or ipv6_pattern.fullmatch(ip):
-              return f"{domain}    {ip}"
-          else:
-              return line
+          # 将处理后的内容写入新文件
+          with open(output_file, 'w', encoding='utf-8') as f:
+              f.write("\n".join(processed_lines))
+              f.write("\n") # 在文件末尾添加一个换行符
 
-      transformed_lines = [transform_line(l) for l in hosts_content.splitlines()]
-      return "\n".join([l for l in transformed_lines if l is not None])
+          print(f"处理完成！结果已保存到 {output_file}")
+          EOF
 
-  with open('all-hosts.txt', 'r', encoding='utf-8') as f:
-      content = f.read()
+          # 运行 Python 脚本
+          python process_hosts.py
 
-  converted = convert_hosts_file(content)
+      # 步骤 5: 上传最终文件作为构建产物 (Artifact)
+      - name: Upload final hosts file
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-hosts-file
+          path: final-hosts.txt
 
-  with open('merged-hosts.txt', 'w', encoding='utf-8') as f:
-      f.write(converted)
-PY
-
-      - name: Commit and push
+      # 步骤 6 (可选): 将最终文件提交回仓库
+      - name: Commit and push if changed
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add merged-hosts.txt
-          git diff --staged --quiet || git commit -m "auto update hosts"
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add final-hosts.txt
+          # 只有当文件有变化时才提交
+          git diff --staged --quiet || git commit -m "Auto-update final-hosts.txt"
           git push
