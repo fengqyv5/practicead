@@ -35,20 +35,25 @@ jobs:
           echo "合并完成，生成 combined-hosts.txt"
 
       # 步骤 4: 使用 Python 脚本处理文件
+            # 步骤 4: 使用修正后的 Python 脚本处理文件
       - name: Process merged file with Python
         run: |
-          # 创建一个 Python 脚本
+          # 创建一个修正版的 Python 脚本
           cat > process_hosts.py << 'EOF'
           import re
           import sys
 
           # 定义用于匹配 IPv4 和 IPv6 地址的正则表达式
           # IPv4: 4组1-3位数字，用.分隔
-          # IPv6: 多组4位十六进制数，用:分隔，支持::压缩
-          IPV4_REGEX = r'(\d{1,3}\.){3}\d{1,3}'
-          IPV6_REGEX = r'([0-9a-fA-F]{1,4}:){2,7}[0-9a-fA-F]{1,4}'
+          IPV4_REGEX = r'((25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)'
+          
+          # IPv6: 一个更健壮的匹配模式，可以处理各种格式，包括 :: 压缩
+          # 它匹配8组4位十六进制数，或者用 :: 替代任意数量的连续的 0 组
+          IPV6_REGEX = r'([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|(([0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4})?::(([0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4})?'
+
           # 合并 IP 匹配模式，并确保行首是 IP
-          IP_REGEX = re.compile(rf'^\s*(?P<ip>({IPV4_REGEX})|({IPV6_REGEX}))\s+(?P<domain>.+)$')
+          # 使用非捕获组 (?:...) 来提高效率
+          IP_REGEX = re.compile(rf'^\s*(?P<ip>(?:{IPV4_REGEX})|(?:{IPV6_REGEX}))\s+(?P<domain>.+)$')
 
           input_file = 'combined-hosts.txt'
           output_file = 'final-hosts.txt'
